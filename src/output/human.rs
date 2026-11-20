@@ -1,5 +1,6 @@
 use crate::analyzer::CheckReport;
 use crate::error::{Result, SqlKeelError};
+use crate::lineage::LineageReport;
 use crate::rules::{RuleMeta, Severity};
 use crate::schema::SchemaCatalog;
 use owo_colors::OwoColorize;
@@ -69,6 +70,76 @@ pub fn print_check_report(report: &CheckReport, color: bool) -> Result<()> {
         println!("\n  (output truncated; pass `--max-diagnostics 0` to show all)");
     }
 
+    Ok(())
+}
+
+pub fn print_lineage_report(report: &LineageReport, color: bool) -> Result<()> {
+    if let Some(ref br) = report.blast_radius {
+        let label = match &br.column {
+            Some(c) => format!("{}.{c}", br.target),
+            None => br.target.clone(),
+        };
+        let badge = if color {
+            " BLAST RADIUS ".on_yellow().black().bold().to_string()
+        } else {
+            "[BLAST RADIUS]".to_string()
+        };
+        println!(
+            "{badge} {label} -> {} downstream model(s), {} impacted column(s) across {} SQL file(s)",
+            br.impacted_models, br.impacted_columns, report.files_analyzed
+        );
+        if br.hits.is_empty() {
+            println!("\n  No downstream dependencies found for '{label}'.");
+        }
+        for hit in &br.hits {
+            let loc = hit
+                .line
+                .map_or_else(|| hit.file.clone(), |l| format!("{}:{l}", hit.file));
+            let col_part = hit
+                .output_column
+                .as_deref()
+                .map(|c| format!(".{c}"))
+                .unwrap_or_default();
+            println!(
+                "\n  [hop {}] {}{col_part}  ({loc})",
+                hit.hop_depth, hit.model
+            );
+            println!("    path: {}", hit.path.join(" -> "));
+        }
+        return Ok(());
+    }
+
+    println!(
+        "Lineage: {} model(s), {} edge(s) across {} SQL file(s)\n",
+        report.models_count, report.edge_count, report.files_analyzed
+    );
+    for m in &report.models {
+        let jinja_tag = if m.had_jinja { " [jinja]" } else { "" };
+        if color {
+            println!("  {}{jinja_tag}  ({})", m.model.cyan().bold(), m.file.dimmed());
+        } else {
+            println!("  {}{jinja_tag}  ({})", m.model, m.file);
+        }
+        if let Some(ref err) = m.parse_error {
+            println!("    parse_error: {err}");
+            continue;
+        }
+        if !m.upstream_tables.is_empty() {
+            println!("    upstream: {}", m.upstream_tables.join(", "));
+        }
+        for col in &m.columns {
+            let srcs: Vec<String> = col
+                .sources
+                .iter()
+                .map(|s| format!("{}.{}", s.table, s.column))
+                .collect();
+            if srcs.is_empty() {
+                println!("    - {}  <- ({})", col.name, col.expression);
+            } else {
+                println!("    - {}  <- {}", col.name, srcs.join(", "));
+            }
+        }
+    }
     Ok(())
 }
 

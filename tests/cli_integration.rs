@@ -221,3 +221,88 @@ fn rules_schema_skill_and_exit_2_errors() {
     assert_eq!(env["ok"], false);
     assert_eq!(env["error"]["code"], "SK_UNKNOWN_RULE");
 }
+
+#[test]
+fn dbt_jinja_models_lint_cleanly_and_trace_multi_hop_column_blast_radius() {
+    // 1. Check dbt/Jinja models grounded against ODCS/TOML contracts
+    sqlkeel()
+        .args([
+            "check",
+            example("models/int_student_risk.sql").to_str().unwrap(),
+            "--schema",
+            example("contracts").to_str().unwrap(),
+            "--fail-on",
+            "warning",
+            "--format",
+            "agent",
+        ])
+        .assert()
+        .success();
+
+    // 2. Trace 2-hop transitive column blast radius for `populi_students.gpa`
+    //    populi_students.gpa -> int_student_risk.{student_gpa, risk_tier}
+    //                       -> mart_advisor_outreach.{student_gpa, risk_tier, needs_immediate_outreach}
+    let out = sqlkeel()
+        .args([
+            "lineage",
+            example("models").to_str().unwrap(),
+            "--schema",
+            example("contracts").to_str().unwrap(),
+            "--column",
+            "populi_students.gpa",
+            "--format",
+            "agent",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let report: Value = serde_json::from_slice(&out).expect("valid JSON");
+    assert_eq!(report["ok"], true);
+    let br = &report["blast_radius"];
+    assert_eq!(br["impacted_models"], 2);
+    assert!(br["impacted_columns"].as_u64().unwrap() >= 4);
+
+    let hits = br["hits"].as_array().unwrap();
+    let hit_pairs: Vec<(String, String, u64)> = hits
+        .iter()
+        .map(|h| {
+            (
+                h["model"].as_str().unwrap().to_string(),
+                h["output_column"].as_str().unwrap().to_string(),
+                h["hop_depth"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+
+    assert!(
+        hit_pairs.contains(&("int_student_risk".to_string(), "student_gpa".to_string(), 1)),
+        "hits: {hit_pairs:?}"
+    );
+    assert!(
+        hit_pairs.contains(&("int_student_risk".to_string(), "risk_tier".to_string(), 1)),
+        "hits: {hit_pairs:?}"
+    );
+    assert!(
+        hit_pairs.contains(&(
+            "mart_advisor_outreach".to_string(),
+            "needs_immediate_outreach".to_string(),
+            2
+        )),
+        "hits: {hit_pairs:?}"
+    );
+
+    // 3. Mermaid DAG rendering
+    sqlkeel()
+        .args([
+            "lineage",
+            example("models").to_str().unwrap(),
+            "--mermaid",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("flowchart LR"))
+        .stdout(predicate::str::contains("int_student_risk --> mart_advisor_outreach"));
+}

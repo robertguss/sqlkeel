@@ -1,5 +1,6 @@
 use crate::analyzer::CheckReport;
 use crate::error::{Result, SqlKeelError};
+use crate::lineage::LineageReport;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -45,6 +46,46 @@ pub fn print_check_report(report: &CheckReport) -> Result<()> {
     };
 
     let json = serde_json::to_string(&env)
+        .map_err(|e| SqlKeelError::General(format!("JSON serialization error: {e}")))?;
+    println!("{json}");
+    Ok(())
+}
+
+pub fn print_lineage_report(report: &LineageReport) -> Result<()> {
+    let payload = if let Some(ref br) = report.blast_radius {
+        let label = match &br.column {
+            Some(c) => format!("{}.{c}", br.target),
+            None => br.target.clone(),
+        };
+        serde_json::json!({
+            "schema_version": "1.0",
+            "command": "lineage",
+            "ok": true,
+            "summary": format!(
+                "BLAST RADIUS for '{}': {} downstream model(s), {} impacted column(s).",
+                label, br.impacted_models, br.impacted_columns
+            ),
+            "files_analyzed": report.files_analyzed,
+            "blast_radius": br,
+        })
+    } else {
+        serde_json::json!({
+            "schema_version": "1.0",
+            "command": "lineage",
+            "ok": true,
+            "summary": format!(
+                "LINEAGE: {} model(s) and {} edge(s) across {} SQL file(s).",
+                report.models_count, report.edge_count, report.files_analyzed
+            ),
+            "files_analyzed": report.files_analyzed,
+            "models_count": report.models_count,
+            "edge_count": report.edge_count,
+            "edges": report.edges,
+            "models": report.models,
+        })
+    };
+
+    let json = serde_json::to_string(&payload)
         .map_err(|e| SqlKeelError::General(format!("JSON serialization error: {e}")))?;
     println!("{json}");
     Ok(())

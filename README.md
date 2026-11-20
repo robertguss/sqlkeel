@@ -19,6 +19,9 @@ Existing SQL tools split formatting (`sqruff` / `sqlfluff`) from DDL lock lintin
   - Catches `SK_UNKNOWN_TABLE` and `SK_UNKNOWN_COLUMN` statically without a live DB, with **fuzzy Levenshtein "did you mean?" suggestions** (`s.gpa_score` → `s.gpa`).
 - **PostgreSQL zero-downtime migration & DML safety:**
   - `SK_PG_CREATE_INDEX_LOCK`, `SK_PG_DROP_INDEX_LOCK`, `SK_PG_ADD_COLUMN_NOT_NULL`, `SK_PG_ALTER_COLUMN_TYPE`, `SK_PG_ADD_CONSTRAINT_LOCK`, `SK_PG_DESTRUCTIVE_DDL`, `SK_DELETE_WITHOUT_WHERE`, `SK_UPDATE_WITHOUT_WHERE`.
+- **Zero-warehouse table & column-level lineage (`sqlkeel lineage`):**
+  - Parses plain SQL views and **dbt/Jinja models** (`{{ ref(...) }}`, `{{ source(...) }}`, `{{ config(...) }}`, `{% ... %}`) with exact line preservation—no `dbt compile` or live warehouse needed.
+  - Traces **transitive multi-hop column blast radius** (`sqlkeel lineage models/ --column populi_students.gpa`) and renders Mermaid DAGs (`--mermaid`).
 - **First-class AX (Agent Experience):**
   - TTY-aware dual mode (`auto`/`human`/`agent`/`json`), strict `stdout`/`stderr` split, exact `file:line:column` spans, actionable `fix_hint`s, exit codes `0`/`1`/`2`, and bundled `SKILL.md` (`sqlkeel skill --install .agents/skills/sqlkeel`).
 
@@ -43,10 +46,14 @@ sqlkeel check examples/seminary-sql/queries/ \
 # 2. Check Postgres migrations strictly (fail on warnings too)
 sqlkeel check examples/seminary-sql/migrations/ --fail-on warning
 
-# 3. Inspect all known tables & columns in one compact payload
+# 3. Trace transitive column blast radius across SQL / dbt models before changing a column
+sqlkeel lineage examples/seminary-sql/models/ --column populi_students.gpa
+sqlkeel lineage examples/seminary-sql/models/ --mermaid
+
+# 4. Inspect all known tables & columns in one compact payload
 sqlkeel schema examples/seminary-sql/contracts/
 
-# 4. Install the built-in AI Agent Skill into your repo
+# 5. Install the built-in AI Agent Skill into your repo
 sqlkeel skill --install .agents/skills/sqlkeel
 ```
 

@@ -1,7 +1,9 @@
 pub mod analyzer;
 pub mod cli;
 pub mod error;
+pub mod lineage;
 pub mod output;
+pub mod preprocess;
 pub mod rules;
 pub mod schema;
 pub mod skill;

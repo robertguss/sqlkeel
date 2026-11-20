@@ -4,6 +4,7 @@ pub mod human;
 use crate::analyzer::CheckReport;
 use crate::cli::OutputFormatArg;
 use crate::error::{Result, SqlKeelError};
+use crate::lineage::LineageReport;
 use crate::rules::RuleMeta;
 use crate::schema::SchemaCatalog;
 use std::io::IsTerminal;
@@ -49,6 +50,18 @@ pub fn emit_check_report(
     match format {
         ResolvedFormat::Human => human::print_check_report(report, use_color),
         ResolvedFormat::Agent => agent::print_check_report(report),
+        ResolvedFormat::Json => print_json(report),
+    }
+}
+
+pub fn emit_lineage_report(
+    report: &LineageReport,
+    format: ResolvedFormat,
+    use_color: bool,
+) -> Result<()> {
+    match format {
+        ResolvedFormat::Human => human::print_lineage_report(report, use_color),
+        ResolvedFormat::Agent => agent::print_lineage_report(report),
         ResolvedFormat::Json => print_json(report),
     }
 }

@@ -1,5 +1,6 @@
 use crate::cli::{DialectArg, FailOnArg};
 use crate::error::{Result, SqlKeelError};
+use crate::preprocess::preprocess_sql;
 use crate::rules::{ALL_RULES, Diagnostic, Severity, Suppressions, is_known_rule};
 use crate::schema::{SchemaCatalog, TableSchema, make_dialect, normalize_table_ident};
 use ignore::WalkBuilder;
@@ -122,7 +123,7 @@ pub fn run_check(
     })
 }
 
-fn collect_sql_inputs(paths: &[String]) -> Result<Vec<(String, String)>> {
+pub(crate) fn collect_sql_inputs(paths: &[String]) -> Result<Vec<(String, String)>> {
     let mut results = Vec::new();
     let mut file_paths: Vec<PathBuf> = Vec::new();
 
@@ -182,6 +183,11 @@ pub fn analyze_sql_str(
     config: &CheckConfig,
 ) -> Vec<Diagnostic> {
     let suppressions = Suppressions::parse(sql);
+    let model_name = Path::new(file)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("query");
+    let (processed_sql, _) = preprocess_sql(sql, model_name);
     let dialect = make_dialect(config.dialect);
 
     let mut ctx = AnalyzerCtx {
@@ -192,7 +198,7 @@ pub fn analyze_sql_str(
         diagnostics: Vec::new(),
     };
 
-    let stmts = match Parser::parse_sql(dialect.as_ref(), sql) {
+    let stmts = match Parser::parse_sql(dialect.as_ref(), &processed_sql) {
         Ok(s) => s,
         Err(err) => {
             let (line, col) = extract_parse_error_loc(&err.to_string());

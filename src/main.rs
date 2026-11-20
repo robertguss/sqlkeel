@@ -2,6 +2,7 @@ use clap::Parser;
 use sqlkeel::analyzer::{self, CheckConfig};
 use sqlkeel::cli::{Cli, Commands};
 use sqlkeel::error::{EXIT_ERROR, EXIT_OK, EXIT_VIOLATION, Result};
+use sqlkeel::lineage;
 use sqlkeel::output::{self, ResolvedFormat};
 use sqlkeel::rules::ALL_RULES;
 use sqlkeel::schema::SchemaCatalog;
@@ -58,6 +59,34 @@ fn run(cli: Cli, format: ResolvedFormat, use_color: bool) -> Result<i32> {
             } else {
                 Ok(EXIT_VIOLATION)
             }
+        }
+
+        Commands::Lineage {
+            paths,
+            schemas,
+            dialect,
+            target,
+            column,
+            mermaid,
+        } => {
+            let catalog = if schemas.is_empty() {
+                SchemaCatalog::default()
+            } else {
+                SchemaCatalog::load_from_paths(&schemas, dialect)?
+            };
+            let report = lineage::analyze_lineage(
+                &paths,
+                &catalog,
+                dialect,
+                target.as_deref(),
+                column.as_deref(),
+            )?;
+            if mermaid {
+                print!("{}", lineage::render_mermaid(&report));
+            } else {
+                output::emit_lineage_report(&report, format, use_color)?;
+            }
+            Ok(EXIT_OK)
         }
 
         Commands::Rules => {

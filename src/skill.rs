@@ -30,16 +30,23 @@ description: Statically verify SQL queries, views, analytics models, and Postgre
 | Check a SQL folder grounded in `datakeel` contracts | `sqlkeel check sql/ --schema contracts/ --format agent` |
 | Check a migration file strictly (fail on warnings too) | `sqlkeel check migrations/004_idx.sql --fail-on warning --format agent` |
 | Check a query piped over stdin against DDL/contracts | `echo "SELECT ..." \| sqlkeel check - --schema contracts/ --format agent` |
+| Trace table & column lineage across SQL / dbt models | `sqlkeel lineage models/ --schema contracts/ --format agent` |
+| Compute transitive blast radius before changing a column | `sqlkeel lineage models/ --column populi_students.gpa --format agent` |
+| Render a Mermaid DAG of SQL / dbt models | `sqlkeel lineage models/ --mermaid` |
 | Inspect all known tables & columns before writing SQL | `sqlkeel schema contracts/ migrations/001_init.sql --format agent` |
 | List every built-in `SK_*` rule code | `sqlkeel rules --format agent` |
 | Suppress a single intentional rule inline | `-- sqlkeel:ignore SK_SELECT_STAR` (same line or line above) |
 
 ## Agent Decision Tree for SQL & Migrations
 
-1. **Before writing new SQL views or risk-scoring queries:**
+1. **Before renaming or dropping any column in a contract, table, or migration:**
+   - Run `sqlkeel lineage sql/ models/ --column <table>.<col> --format agent`.
+   - Inspect every direct and transitive downstream model/column hit before touching the schema.
+2. **Before writing new SQL views or risk-scoring queries:**
    - Run `sqlkeel schema contracts/ --format agent` to load exact table names, column names, types, and nullability in one compact payload.
-2. **After writing or modifying any `.sql` file:**
+3. **After writing or modifying any `.sql` file (plain SQL or dbt/Jinja):**
    - Run `sqlkeel check <path> --schema contracts/ --format agent`.
+   - dbt/Jinja syntax (`{{ ref(...) }}`, `{{ source(...) }}`, `{{ config(...) }}`, `{% ... %}`) is handled automatically with exact original line numbers—no `dbt compile` required.
    - If exit code is `1`, inspect each diagnostic's `code`, `file:line:column`, `message`, `fix_hint`, and `suggestion`:
      - `SK_LEFT_JOIN_WHERE_FILTER`: Move the right-side filter into `LEFT JOIN ... ON`, or guard with `OR <alias>.<col> IS NULL`.
      - `SK_NOT_IN_SUBQUERY`: Rewrite to `NOT EXISTS (...)` or add `WHERE <col> IS NOT NULL`.

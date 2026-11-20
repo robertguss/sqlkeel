@@ -78,6 +78,33 @@ pub enum Commands {
         max_diagnostics: usize,
     },
 
+    /// Build zero-warehouse table & column-level SQL lineage DAGs and blast-radius impact reports
+    Lineage {
+        /// SQL file(s), directory(ies), or '-' for stdin (supports plain SQL views and dbt/Jinja models)
+        #[arg(required = true)]
+        paths: Vec<String>,
+
+        /// Optional schema source(s) (ODCS v3 YAML, datakeel TOML, SQL DDL) to expand SELECT * and canonicalize names
+        #[arg(long = "schema", value_name = "PATH")]
+        schemas: Vec<PathBuf>,
+
+        /// SQL dialect for parsing
+        #[arg(long, value_enum, default_value_t = DialectArg::Postgres)]
+        dialect: DialectArg,
+
+        /// Compute transitive downstream blast radius for a table (e.g. `populi_students`)
+        #[arg(long)]
+        target: Option<String>,
+
+        /// Compute transitive downstream column blast radius (e.g. `populi_students.gpa`)
+        #[arg(long)]
+        column: Option<String>,
+
+        /// Output a Mermaid flowchart LR diagram of the table lineage DAG
+        #[arg(long)]
+        mermaid: bool,
+    },
+
     /// List all built-in SQL semantic, schema, safety, and migration rules
     Rules,
 
