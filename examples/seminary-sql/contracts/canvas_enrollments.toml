@@ -1,0 +1,27 @@
+[contract]
+name = "canvas_enrollments"
+table = "staging.canvas_enrollments"
+version = "1.0.0"
+
+[columns.enrollment_id]
+type = "string"
+required = true
+primary_key = true
+
+[columns.sis_user_id]
+type = "string"
+required = true
+
+[columns.course_id]
+type = "string"
+required = true
+
+[columns.current_score]
+type = "number"
+
+[columns.missing_assignments]
+type = "integer"
+required = true
+
+[columns.last_activity_at]
+type = "timestamp"

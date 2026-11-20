@@ -1,0 +1,29 @@
+[package]
+name = "sqlkeel"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Blazing-fast, agent-first (DX + AX) Rust SQL semantic bug, schema-grounding, and Postgres migration safety analyzer."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/robertguss/sqlkeel"
+homepage = "https://github.com/robertguss/sqlkeel"
+keywords = ["sql", "postgres", "linter", "static-analysis", "odcs"]
+categories = ["command-line-utilities", "development-tools", "database"]
+
+[dependencies]
+clap = { version = "4.6", features = ["derive", "env"] }
+ignore = "0.4"
+indexmap = { version = "2.14", features = ["serde"] }
+owo-colors = { version = "4.4", features = ["supports-colors"] }
+rayon = "1.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml_ng = "0.10"
+sqlparser = "0.64"
+thiserror = "2.0"
+toml = "1.2"
+
+[dev-dependencies]
+assert_cmd = "2.2"
+predicates = "3.1"
+tempfile = "3.27"

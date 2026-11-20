@@ -1,0 +1,35 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:datakeel:populi_students
+name: populi_students
+version: 1.0.0
+status: active
+schema:
+  - name: populi_students
+    physicalName: staging.populi_students
+    properties:
+      - name: student_id
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+      - name: email
+        logicalType: string
+        physicalType: text
+        required: true
+      - name: program
+        logicalType: string
+        physicalType: text
+        required: true
+      - name: status
+        logicalType: string
+        physicalType: text
+        required: true
+      - name: gpa
+        logicalType: number
+        physicalType: double precision
+        required: false
+      - name: advisor_email
+        logicalType: string
+        physicalType: text
+        required: false
